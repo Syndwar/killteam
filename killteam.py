@@ -63,6 +63,7 @@ g_kill_teams = {}
 g_kill_teams_order = []
 g_units = []
 g_weapons = {}
+g_locale = {}
 
 def tab(n):
     return n*' '
@@ -70,21 +71,22 @@ def tab(n):
 class Faction():
     def __init__(self, id, data):
         self.id = id
-        self.name = data['name']
+        self.name = g_locale[data['name']]
 
 class KillTeam():
     def __init__(self, id, data):
         self.id = id
-        self.name = data['name']
+        self.name = g_locale[data['name']]
         self.kill_team = data['kill_team']
 
 class Unit():
     def __init__(self, data):
-        self.id = data['id']
-        self.name = data['name']
+        self.name = g_locale[data['name']]
         self.kill_team = data['kill_team']
         self.melee = None
         self.ranged = None
+        self.amount_cur = 0
+        self.amount_max = data['max'] if 'max' in data else 1
         self.addWeapons(data['weapons'])
 
     def addWeapons(self, weapons):
@@ -102,13 +104,14 @@ class Unit():
     def serialize(self):
         ranged_name = self.ranged.name if self.ranged else "" 
         melee_name = self.melee.name if self.melee else "" 
-        output = f"{tab(5)}<tr><th>{self.name}</th><td>{ranged_name}</td><td>{melee_name}</td></tr>"
+        amount = f"{self.amount_cur}/{self.amount_max}"
+        output = f"{tab(5)}<tr><th>{self.name}</th><td>{ranged_name}</td><td>{melee_name}</td><td>{amount}</td></tr>"
         return output
 
 class Weapon():
     def __init__(self, id, data):
         self.id = id
-        self.name = data['name']
+        self.name = g_locale[data['name']]
         self.type = data['type']
 
 def create_order():
@@ -188,7 +191,15 @@ def create_team_pages():
             page = KILL_TEAMS_PAGE.replace('{body}', body).replace('{header}', kt.name)
             f.write(page)
 
+def create_locales():
+    with open('data/locale.json', 'r') as f:
+        locale_db = json.loads(f.read())
+        if locale_db: 
+            for key in locale_db:
+                g_locale[key] = locale_db[key]
+
 def main():
+    create_locales()
     create_order()
     create_factions()
     create_kill_teams()
