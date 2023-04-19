@@ -57,27 +57,24 @@ KILL_TEAMS_PAGE = """
 </html>
 """
 
-g_factions = {}
-g_factions_order = []
-g_kill_teams = {}
-g_kill_teams_order = []
+g_factions = []
+g_kill_teams = []
 g_units = []
-g_weapons = {}
 g_locale = {}
 
 def tab(n):
     return n*' '
 
 class Faction():
-    def __init__(self, id, data):
-        self.id = id
-        self.name = g_locale[data['name']]
+    def __init__(self, data):
+        self.id = data['id']
+        self.name = data['name']
 
 class KillTeam():
-    def __init__(self, id, data):
-        self.id = id
+    def __init__(self, data):
+        self.id = data['id']
         self.name = g_locale[data['name']]
-        self.kill_team = data['kill_team']
+        self.faction = data['faction']
 
 class Unit():
     def __init__(self, data):
@@ -90,20 +87,14 @@ class Unit():
         self.addWeapons(data['weapons'])
 
     def addWeapons(self, weapons):
-        for id in weapons:
-            weapon = g_weapons[id]
-            if ('melee' == weapon.type):
-                self.melee = weapon
-            elif ('ranged' == weapon.type):
-                self.ranged = weapon
-            elif ('combo' == weapon.type):
-                self.melee = weapon
-                self.ranged = weapon
-
+        if ('ranged' in weapons):
+            self.ranged = weapons['ranged']
+        if ('melee' in weapons):
+            self.melee = weapons['melee']
 
     def serialize(self):
-        ranged_name = self.ranged.name if self.ranged else "" 
-        melee_name = self.melee.name if self.melee else "" 
+        ranged_name = self.ranged if self.ranged else "" 
+        melee_name = self.melee if self.melee else "" 
         amount = f"{self.amount_cur}/{self.amount_max}"
         output = f"{tab(5)}<tr><th>{self.name}</th><td>{ranged_name}</td><td>{melee_name}</td><td>{amount}</td></tr>"
         return output
@@ -114,28 +105,19 @@ class Weapon():
         self.name = g_locale[data['name']]
         self.type = data['type']
 
-def create_order():
-    with open('data/order.json') as f:
-        json_data = json.loads(f.read())
-        if json_data:
-            for id in json_data['factions']:
-                g_factions_order.append(id)
-            for id in json_data['kill_teams']:
-                g_kill_teams_order.append(id)
-
 def create_factions():
     with open('data/factions.json', 'r') as f:
         json_data = json.loads(f.read())
         if json_data:
-            for id in json_data:
-                g_factions[id] = Faction(id, json_data[id])
+            for data in json_data:
+                g_factions.append(Faction(data))
 
 def create_kill_teams():
     with open('data/kill_teams.json', 'r') as f:
         json_data = json.loads(f.read())
         if json_data:
-            for id in json_data:
-                g_kill_teams[id] = KillTeam(id, json_data[id])
+            for data in json_data:
+                g_kill_teams.append(KillTeam(data))
 
 def create_units():
     with open('data/units.json', 'r') as f:
@@ -144,25 +126,16 @@ def create_units():
             for data in units_db: 
                 g_units.append(Unit(data))
 
-def create_weapons():
-    with open('data/weapons.json', 'r') as f:
-        weapons_db = json.loads(f.read())
-        if weapons_db: 
-            for id in weapons_db: 
-                g_weapons[id] = Weapon(id, weapons_db[id])
-
 def serialize():
     create_main_page()
     create_team_pages()
 
 def create_main_page():
     body = ""
-    for f_id in g_factions_order:
+    for faction in g_factions:
         first_row = True
-        faction = g_factions[f_id]
-        for kt_id in g_kill_teams_order:
-            kt = g_kill_teams[kt_id]
-            if (f_id == kt.kill_team):
+        for kt in g_kill_teams:
+            if (faction.id == kt.faction):
                 page_url = f"<a href=\"{kt.id}.html\">{kt.name}</a>"
                 if first_row:
                     body = f"{body}{tab(2)}<tr><th>{faction.name}</th><td>{page_url}</td></tr>\n"
@@ -175,8 +148,7 @@ def create_main_page():
         f.write(page)
 
 def create_team_pages():
-    for id in g_kill_teams:
-        kt = g_kill_teams[id]
+    for kt in g_kill_teams:
         body = ""
         for unit in g_units:
             if ("" == body):
@@ -200,10 +172,8 @@ def create_locales():
 
 def main():
     create_locales()
-    create_order()
     create_factions()
     create_kill_teams()
-    create_weapons()
     create_units()
     serialize()
 
