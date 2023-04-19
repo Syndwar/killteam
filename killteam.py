@@ -60,25 +60,31 @@ KILL_TEAMS_PAGE = """
 g_factions = []
 g_kill_teams = []
 g_units = []
-g_locale = {}
 
 def tab(n):
     return n*' '
 
 class Faction():
     def __init__(self, data):
-        self.id = data['id']
         self.name = data['name']
+        self.kill_teams = []
+        for id in data['kill_teams']:
+            self.kill_teams.append(id)
+
+    def id(self):
+        return self.name.lower().replace(' ', '_').replace('-', '_').replace('`', '')
 
 class KillTeam():
-    def __init__(self, data):
-        self.id = data['id']
-        self.name = g_locale[data['name']]
-        self.faction = data['faction']
+    def __init__(self, name, faction):
+        self.name = name
+        self.faction = faction
+
+    def id(self):
+        return self.name.lower().replace(' ', '_').replace('-', '_').replace('`', '')
 
 class Unit():
     def __init__(self, data):
-        self.name = g_locale[data['name']]
+        self.name = data['name']
         self.kill_team = data['kill_team']
         self.melee = None
         self.ranged = None
@@ -99,12 +105,6 @@ class Unit():
         output = f"{tab(5)}<tr><th>{self.name}</th><td>{ranged_name}</td><td>{melee_name}</td><td>{amount}</td></tr>"
         return output
 
-class Weapon():
-    def __init__(self, id, data):
-        self.id = id
-        self.name = g_locale[data['name']]
-        self.type = data['type']
-
 def create_factions():
     with open('data/factions.json', 'r') as f:
         json_data = json.loads(f.read())
@@ -113,11 +113,9 @@ def create_factions():
                 g_factions.append(Faction(data))
 
 def create_kill_teams():
-    with open('data/kill_teams.json', 'r') as f:
-        json_data = json.loads(f.read())
-        if json_data:
-            for data in json_data:
-                g_kill_teams.append(KillTeam(data))
+    for faction in g_factions:
+        for name in faction.kill_teams:
+            g_kill_teams.append(KillTeam(name, faction.name))
 
 def create_units():
     with open('data/units.json', 'r') as f:
@@ -135,8 +133,9 @@ def create_main_page():
     for faction in g_factions:
         first_row = True
         for kt in g_kill_teams:
-            if (faction.id == kt.faction):
-                page_url = f"<a href=\"{kt.id}.html\">{kt.name}</a>"
+            if (kt.faction == faction.name):
+                page_id = kt.id()
+                page_url = f"<a href=\"{page_id}.html\">{kt.name}</a>"
                 if first_row:
                     body = f"{body}{tab(2)}<tr><th>{faction.name}</th><td>{page_url}</td></tr>\n"
                 else:
@@ -153,25 +152,18 @@ def create_team_pages():
         for unit in g_units:
             if ("" == body):
                 body = f"{tab(4)}<table class=\"center\">"
-            if (kt.id == unit.kill_team):
+            if (kt.name == unit.kill_team):
                 unit_table = unit.serialize()
                 body = f"{body}{unit_table}\n"
         if ("" != body):
             body = f"{body}{tab(4)}</table>"
 
-        with open(f"{kt.id}.html", 'w') as f:
+        page_id = kt.id()
+        with open(f"{page_id}.html", 'w') as f:
             page = KILL_TEAMS_PAGE.replace('{body}', body).replace('{header}', kt.name)
             f.write(page)
 
-def create_locales():
-    with open('data/locale.json', 'r') as f:
-        locale_db = json.loads(f.read())
-        if locale_db: 
-            for key in locale_db:
-                g_locale[key] = locale_db[key]
-
 def main():
-    create_locales()
     create_factions()
     create_kill_teams()
     create_units()
